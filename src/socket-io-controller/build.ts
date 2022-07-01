@@ -34,10 +34,38 @@ async function createCloudBuildTask(app: Application, socket: Socket) {
   return result
 }
 
+async function prepare(cloudBuildTask, socket: Socket) {
+  socket.emit('build', parseMsg('prepare', {
+    message: '开发执行构建前检查',
+  }))
+  const prepareRes = await cloudBuildTask.prepare()
+  if (!prepareRes || prepareRes.code === -1) {
+    socket.emit('build', parseMsg('prepare failed', {
+      message: `执行构建检查失败，失败原因：${prepareRes.message}`,
+    }))
+    return
+  }
+  socket.emit('build', parseMsg('prepare', {
+    message: '构建前检查成功',
+  }))
+}
+
 export default async function build(app: Application, socket: Socket, next: NextType) {
   const cloudBuildTask = await createCloudBuildTask(app, socket)
   // eslint-disable-next-line no-console
   console.log(cloudBuildTask)
+  try {
+    await prepare(cloudBuildTask, socket)
+  }
+  catch (err) {
+    socket.emit('build', parseMsg('error', {
+      message: `云构建失败，失败原因：${err.message}`,
+    }))
+    if (cloudBuildTask)
+      cloudBuildTask.clean()
+
+    socket.disconnect()
+  }
   next()
 }
 

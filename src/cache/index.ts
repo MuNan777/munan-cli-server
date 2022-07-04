@@ -29,11 +29,11 @@ export async function cacheGet(key: string) {
     const val = await redisClient.get(key)
     if (val === null)
       return null
-
     try {
       return JSON.parse(val)
     }
     catch (ex) {
+      console.error(ex)
       return val
     }
   }

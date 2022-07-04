@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "command": "munan-cli",
+      "command": "node bin/www.mjs",
       "name": "Run cli Test",
       "request": "launch",
       "type": "node-terminal"

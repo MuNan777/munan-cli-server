@@ -1,4 +1,4 @@
-export function parseMsg(action, payload = {}, metadata = {}) {
+export function parseMsg(action: string, payload = {}, metadata = {}) {
   const meta = Object.assign({}, {
     timestamp: Date.now(),
   }, metadata)

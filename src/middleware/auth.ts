@@ -25,8 +25,6 @@ export default async function auth(app: Application, socket: Socket, next: () =>
       socket.disconnect(true)
     }
     let hasTask = await cacheGet(`${PREFIX}:${task}`)
-    // eslint-disable-next-line no-console
-    console.log('hasTask', hasTask)
     if (!hasTask)
       await cacheSet(`${PREFIX}:${task}`, JSON.stringify(query))
     log('query', JSON.stringify(query))

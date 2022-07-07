@@ -1,12 +1,16 @@
+import path from 'path'
+import fs from 'fs'
 import type Application from 'koa'
 import type { Socket } from 'socket.io'
+import { cacheDelete, cacheGet } from '../cache'
 import type { NextType } from '../socket-route'
-import { cacheGet } from '../cache'
 import { parseMsg } from '../utils/helper'
 import CloudBuildTask from '../model/CloudBuildTask'
-
 import Config from '../config'
+import { getDirName } from '../utils/file'
 const { PREFIX } = Config
+
+let projectName = ''
 
 async function createCloudBuildTask(app: Application, socket: Socket) {
   const client = socket.id
@@ -18,16 +22,18 @@ async function createCloudBuildTask(app: Application, socket: Socket) {
   }))
   let result: CloudBuildTask | null = null
   if (task) {
+    projectName = task.name
     result = new CloudBuildTask({
       repo: task.repo,
-      type: task.type,
       name: task.name,
       branch: task.branch,
       version: task.version,
       prod: task.prod,
       keepCache: task.keepCache,
       useCNpm: task.useCNpm,
+      usePNpm: task.usePNpm,
       buildCmd: task.buildCmd,
+      deployCmd: task.deployCmd,
       socket,
     }, { ctx })
   }
@@ -98,32 +104,74 @@ async function buildProject(cloudBuildTask: CloudBuildTask, socket: Socket) {
   }))
 }
 
-export default async function build(app: Application, socket: Socket, next: NextType) {
-  const cloudBuildTask = await createCloudBuildTask(app, socket)
-  try {
-    if (cloudBuildTask) {
-      socket.on('build', async () => {
-        await prepare(cloudBuildTask, socket)
-        await download(cloudBuildTask, socket)
-        await install(cloudBuildTask, socket)
-        await buildProject(cloudBuildTask, socket)
-      })
+async function deployProject(cloudBuildTask: CloudBuildTask, socket: Socket) {
+  socket.emit('build', parseMsg('deploy', {
+    message: '开启启动云发布',
+  }))
+  if (projectName !== '') {
+    const configPath = path.resolve(getDirName(import.meta.url), '../..', 'deployConfig', `${projectName}.js`)
+    if (fs.existsSync(configPath)) {
+      const buildRes = await cloudBuildTask.deploy(configPath)
+      if (!buildRes) {
+        socket.emit('build', parseMsg('deploy failed', {
+          message: '云发布失败',
+        }))
+        return
+      }
+      socket.emit('build', parseMsg('deploy', {
+        message: '云发布成功',
+      }))
     }
     else {
-      socket.emit('build', parseMsg('error', {
-        message: '云构建失败，失败原因：CloudBuildTask 对象构建失败',
+      socket.emit('build', parseMsg('deploy failed', {
+        message: '云发布失败, 未找到发布配置文件',
       }))
     }
   }
-  catch (err) {
-    socket.emit('build', parseMsg('error', {
-      message: `云构建失败，失败原因：${err.message}`,
+  else {
+    socket.emit('build', parseMsg('deploy failed', {
+      message: '云发布失败, 项目名称不存在',
     }))
-    if (cloudBuildTask)
-      cloudBuildTask.clean()
-
-    socket.disconnect()
   }
-  next()
+}
+
+export default async function build(app: Application, socket: Socket, next: NextType) {
+  const cloudBuildTask = await createCloudBuildTask(app, socket)
+  await new Promise((resolve, reject) => {
+    try {
+      if (cloudBuildTask) {
+        socket.on('build', async () => {
+          await prepare(cloudBuildTask, socket)
+          await download(cloudBuildTask, socket)
+          await install(cloudBuildTask, socket)
+          await buildProject(cloudBuildTask, socket)
+          await deployProject(cloudBuildTask, socket)
+          socket.disconnect()
+          if (cloudBuildTask)
+            cloudBuildTask.clean()
+          const hasTask = await cacheGet(`${PREFIX}:${socket.id}`)
+          if (hasTask)
+            await cacheDelete(`${PREFIX}:${socket.id}`)
+          resolve(cloudBuildTask)
+        })
+        next()
+      }
+      else {
+        socket.emit('build', parseMsg('error', {
+          message: '云构建失败，失败原因：CloudBuildTask 对象构建失败',
+        }))
+        reject(new Error('云构建失败，失败原因：CloudBuildTask 对象构建失败'))
+      }
+    }
+    catch (err) {
+      socket.emit('build', parseMsg('error', {
+        message: `云构建失败，失败原因：${err.message}`,
+      }))
+      if (cloudBuildTask)
+        cloudBuildTask.clean()
+      socket.disconnect()
+      reject(err)
+    }
+  })
 }
 

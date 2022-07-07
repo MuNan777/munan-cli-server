@@ -46,14 +46,15 @@ export default async function auth(app: Application, socket: Socket, next: () =>
       // 兜底逻辑，确保缓存文件被删除
       const cloudBuildTask = new CloudBuildTask({
         repo: query.repo,
-        type: query.type,
         name: query.name,
         branch: query.branch,
         version: query.version,
         prod: query.prod,
         keepCache: query.keepCache,
         useCNpm: query.useCNpm,
+        usePNpm: query.usePNpm,
         buildCmd: query.buildCmd,
+        deployCmd: query.deployCmd,
         socket,
       }, { ctx })
       cloudBuildTask.clean()

@@ -1,0 +1,13 @@
+version: '3'
+services:
+  munan-cli-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: munan-cli-server
+    container_name: munan-cli-server
+    ports:
+     - 7000:7000
+    volumes:
+      - .docker-volumes/deployConfig:/app/deployConfig
+    restart: always

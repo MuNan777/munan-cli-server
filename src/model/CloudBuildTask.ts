@@ -99,7 +99,7 @@ class CloudBuildTask {
     if (this._deployCmd && this._deployCmd.startsWith('npm run deploy'))
       res && (res = await this.execCommand(`${this._deployCmd} -- --config-path=${path}`))
     else
-      res && (res = await this.execCommand(`npm run deploy -- --config-path=${path}`))
+      res && (res = await this.execCommand(`npm run deploy:cloud -- --config-path=${path}`))
     return res
   }
 

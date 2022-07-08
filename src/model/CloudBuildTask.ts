@@ -18,30 +18,32 @@ const FAILED = -1
 class CloudBuildTask {
   private _ctx: Application.BaseContext & Application.DefaultContext
   private _repo: string
-  private _type: string
   private _name: string
   private _branch: string
   private _version: string
   private _prod: string
   private _keepCache: string
   private _useCNpm: string
+  private _usePNpm: string
   private _buildCmd: string
+  private _deployCmd: string
   private _dir: string
   private _sourceCodeDir: string
   private _git: SimpleGit
   private _socket: Socket
 
-  constructor({ repo, type, name, branch, version, prod, keepCache, useCNpm, buildCmd, socket }, { ctx }) {
+  constructor({ repo, name, branch, version, prod, keepCache, useCNpm, usePNpm, buildCmd, socket, deployCmd }, { ctx }) {
     this._ctx = ctx
     this._repo = repo
-    this._type = type
     this._name = name
     this._branch = branch
     this._version = version
     this._prod = prod
     this._keepCache = keepCache
     this._useCNpm = useCNpm
+    this._usePNpm = usePNpm
     this._buildCmd = buildCmd
+    this._deployCmd = deployCmd
     this._dir = path.resolve(userHome, DEFAULT_CLI_HOME, PREFIX, `${this._name}@${this._version}`)
     this._socket = socket
     if (this._dir && this._name)
@@ -54,10 +56,6 @@ class CloudBuildTask {
     fse.ensureDirSync(this._dir)
     fse.emptyDirSync(this._dir)
     this._git = Git(this._dir)
-    // if (this.isProd())
-    //   this.oss = new OSS(config.OSS_PROD_BUCKET)
-    // else
-    //   this.oss = new OSS(config.OSS_DEV_BUCKET)
     return this.success()
   }
 
@@ -78,9 +76,8 @@ class CloudBuildTask {
 
   async install() {
     let res = true
-    if (this.isUseCNpm()) {
-      res && (res = await this.execCommand('cnpm install'))
-    }
+    if (this.isUseCNpm()) { res && (res = await this.execCommand('cnpm install')) }
+    else if (this.isUsePNpm()) { res && (res = await this.execCommand('pnpm install')) }
     else {
       res && (res = await this.execCommand('npm install --only=prod --registry=https://registry.npm.taobao.org'))
       res && (res = await this.execCommand('npm install --only=dev --registry=https://registry.npm.taobao.org'))
@@ -94,6 +91,15 @@ class CloudBuildTask {
       res && (res = await this.execCommand(this._buildCmd))
     else
       res && (res = await this.execCommand('npm run build'))
+    return res
+  }
+
+  async deploy(path: string) {
+    let res = true
+    if (this._deployCmd && this._deployCmd.startsWith('npm run deploy'))
+      res && (res = await this.execCommand(`${this._deployCmd} -- --config-path=${path}`))
+    else
+      res && (res = await this.execCommand(`npm run deploy -- --config-path=${path}`))
     return res
   }
 
@@ -118,6 +124,10 @@ class CloudBuildTask {
 
   isUseCNpm() {
     return this._useCNpm === 'true'
+  }
+
+  isUsePNpm() {
+    return this._usePNpm === 'true'
   }
 
   execCommand(commandStr: string): Promise<boolean> {

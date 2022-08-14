@@ -59,7 +59,13 @@ class CloudBuildTask {
     return this.success()
   }
 
-  async download() {
+  async download(path: string) {
+    const configButter = fse.readFileSync(path)
+    const matchArr = configButter.toString().match(/GIT_TOKEN = '(.*)'/)
+    if (matchArr && matchArr[1]) {
+      const gitToken = matchArr[1]
+      this._repo = this._repo.replace('://', `://${gitToken.replace('@', '%40')}@`)
+    }
     fse.ensureDirSync(this._sourceCodeDir)
     fse.emptyDirSync(this._sourceCodeDir)
     await this._git.clone(this._repo)

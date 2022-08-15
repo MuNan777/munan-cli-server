@@ -11,6 +11,47 @@
 pnpm install
 ```
 
+## Set
+
+```bash
+mkdir .docker-volumes/deployConfig
+cd .docker-volumes/deployConfig
+touch [项目名称].js
+```
+
+导入执行 `npm run deploy:cloud` 所需的配置
+
+配置将会以 `--config-path=<configPath>` 的参数传入命令行，可通过 `process.argv` 获取
+
+##### 配置例子
+
+```js
+// 以腾讯云 cos 为例
+const SECRET_ID = 'xxx'
+
+const SECRET_KEY = 'xxx'
+
+const LOCATION = 'xxx'
+
+const BUCKET_NAME = 'xxx'
+
+const DIST_NAME = 'xxx'
+
+// 云发布可能需要设置 git token 以保证 docker 容器内有拉取代码权限
+// gitee 格式: user:password
+// github 格式：token
+const GIT_TOKEN = ''
+
+module.exports = {
+  SECRET_ID,
+  SECRET_KEY,
+  LOCATION,
+  BUCKET_NAME,
+  DIST_NAME,
+  GIT_TOKEN,
+}
+```
+
 ## Usage
 
 ```sh

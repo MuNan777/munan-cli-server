@@ -60,7 +60,8 @@ async function download(cloudBuildTask: CloudBuildTask, socket: Socket) {
   socket.emit('build', parseMsg('download repo', {
     message: '开始下载源码',
   }))
-  const downloadRes = await cloudBuildTask.download()
+  const configPath = path.resolve(getDirName(import.meta.url), '../..', 'deployConfig', `${projectName}.js`)
+  const downloadRes = await cloudBuildTask.download(configPath)
   if (!downloadRes) {
     socket.emit('build', parseMsg('download failed', {
       message: '源码下载失败',
